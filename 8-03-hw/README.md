@@ -1,3 +1,105 @@
+# Домашнее задание к занятию «Отказоустойчивость в облаке»
+
+**Выполнил:** Андрей Лященко
+
+---
+
+## Задание 1
+
+### Terraform Playbook
+
+#### `provider.tf`
+```hcl
+terraform {
+  required_providers {
+    yandex = {
+      source  = "yandex-cloud/yandex"
+      version = "~> 0.133.0"
+    }
+  }
+}
+
+provider "yandex" {
+  service_account_key_file = var.sa_key_file
+  cloud_id                 = var.cloud_id
+  folder_id                = var.folder_id
+  zone                     = var.zone
+}
+```
+
+#### `variables.tf`
+```hcl
+variable "vm_name_prefix" {
+  type        = string
+  description = "Префикс для имен ВМ и сети"
+  default     = "my-project"
+}
+
+variable "zone" {
+  type        = string
+  description = "Зона доступности"
+  default     = "ru-central1-a"
+}
+
+variable "preemptible" {
+  type        = bool
+  description = "Флаг прерываемой ВМ"
+  default     = false
+}
+
+variable "ssh_public_key" {
+  type        = string
+  description = "Путь к публичному SSH-ключу"
+  default     = "~/.ssh/id_rsa.pub"
+}
+
+variable "ubuntu_image_family" {
+  type        = string
+  description = "Семейство образа Ubuntu"
+  default     = "ubuntu-2204-lts"
+}
+
+variable "debian_image_family" {
+  type        = string
+  description = "Семейство образа Debian"
+  default     = "debian-12"
+}
+
+variable "ubuntu_user" {
+  type        = string
+  default     = "ubuntu"
+}
+
+variable "debian_user" {
+  type        = string
+  default     = "debian"
+}
+
+variable "sa_key_file" {
+  type        = string
+  description = "Путь к файлу ключа сервисного аккаунта (JSON)"
+  default     = "./key.json"
+}
+
+variable "cloud_id" {
+  type        = string
+  description = "Идентификатор облака в Yandex Cloud"
+}
+
+variable "folder_id" {
+  type        = string
+  description = "Идентификатор каталога (folder) в Yandex Cloud"
+}
+
+variable "ssh_private_key" {
+  description = "Путь к приватному SSH-ключу для подключения к ВМ"
+  type        = string
+  default     = "~/.ssh/id_rsa"
+}
+```
+
+#### `main.tf`
+```hcl
 # ============================================================
 # 1. EXISTING SUBNET (data source)
 # ============================================================
@@ -112,3 +214,12 @@ output "vm_ips" {
   description = "Internal IP addresses of the VMs"
   value       = yandex_compute_instance.hw_vm[*].network_interface[0].ip_address
 }
+```
+
+### Скриншот 1: Статус балансировщика и целевой группы
+
+![Скриншот 1](img/lb-status.png)
+
+### Скриншот 2: Страница Nginx по IP балансировщика
+
+![Скриншот 2](img/nginx-page.png)
