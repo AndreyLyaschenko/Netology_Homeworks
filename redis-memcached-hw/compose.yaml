@@ -1,0 +1,14 @@
+services:
+  memcached:
+    image: memcached:1.6-alpine
+    container_name: hw-memcached
+    command: ["memcached", "-m", "64", "-c", "1024"]
+    ports:
+      - "127.0.0.1:11211:11211"
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    container_name: hw-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
