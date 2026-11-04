@@ -1,0 +1,114 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elk-elasticsearch
+    restart: unless-stopped
+
+    environment:
+      ES_JAVA_OPTS: "${ES_JAVA_OPTS}"
+
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+
+    ports:
+      - "127.0.0.1:9200:9200"
+
+    networks:
+      - elk-network
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:9200/_cluster/health > /dev/null || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION}
+    container_name: elk-kibana
+    restart: unless-stopped
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+
+    ports:
+      - "127.0.0.1:5601:5601"
+
+    networks:
+      - elk-network
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: elk-nginx
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8080:80"
+
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./nginx/logs:/var/log/nginx
+
+    networks:
+      - elk-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION}
+    container_name: elk-logstash
+    restart: unless-stopped
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      nginx:
+        condition: service_started
+
+    environment:
+      LS_JAVA_OPTS: "-Xms256m -Xmx256m"
+      XPACK_MONITORING_ENABLED: "false"
+
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./nginx/logs:/var/log/nginx:ro
+
+    networks:
+      - elk-network
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${ELASTIC_VERSION}
+    container_name: elk-filebeat
+    restart: unless-stopped
+
+    user: root
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      nginx:
+        condition: service_started
+
+    command:
+      - filebeat
+      - -e
+      - --strict.perms=false
+
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./nginx/logs:/var/log/nginx:ro
+      - filebeat-data:/usr/share/filebeat/data
+
+    networks:
+      - elk-network    
+volumes:
+  elasticsearch-data:
+  filebeat-data:
+  
+networks:
+  elk-network:
+    driver: bridge
