@@ -1,0 +1,246 @@
+
+---
+- name: Install and configure RabbitMQ cluster
+  hosts: rabbitmq_nodes
+  become: true
+  gather_facts: true
+  serial: 1
+
+  vars:
+    rabbitmq_primary: "{{ groups['rabbitmq_nodes'][0] }}"
+    rabbitmq_policy_name: "ha-all"
+    rabbitmq_policy_pattern: ".*"
+    rabbitmq_policy_definition:
+      delivery-limit: 20
+
+  pre_tasks:
+    - name: Validate configuration
+      ansible.builtin.assert:
+        that:
+          - groups['rabbitmq_nodes'] | length >= 1
+          - vault_rabbitmq_cookie is defined
+        fail_msg: "Configure vault_rabbitmq_cookie using Ansible Vault."
+
+    - name: Validate Erlang cookie
+      ansible.builtin.assert:
+        that:
+          - vault_rabbitmq_cookie | length > 10
+        fail_msg: "Erlang cookie must contain more than 10 characters."
+      no_log: true
+
+    - name: Check operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Debian'
+        fail_msg: "Only Debian and Ubuntu are supported."
+
+  tasks:
+    - name: Set hostname
+      ansible.builtin.hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Configure cluster hostnames
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        marker: "# {mark} ANSIBLE RABBITMQ CLUSTER"
+        block: |
+          {% for host in groups['rabbitmq_nodes'] %}
+          {{ hostvars[host].ansible_host | default(host) }} {{ host }}
+          {% endfor %}
+
+    - name: Install RabbitMQ
+      ansible.builtin.apt:
+        name: rabbitmq-server
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Stop RabbitMQ before configuring cookie
+      ansible.builtin.systemd_service:
+        name: rabbitmq-server
+        state: stopped
+
+    - name: Configure Erlang cookie
+      ansible.builtin.copy:
+        content: "{{ vault_rabbitmq_cookie }}"
+        dest: /var/lib/rabbitmq/.erlang.cookie
+        owner: rabbitmq
+        group: rabbitmq
+        mode: "0400"
+      no_log: true
+
+    - name: Start RabbitMQ service
+      ansible.builtin.systemd_service:
+        name: rabbitmq-server
+        state: started
+        enabled: true
+
+    - name: Enable RabbitMQ management plugin
+      ansible.builtin.command:
+        argv:
+          - rabbitmq-plugins
+          - enable
+          - rabbitmq_management
+      register: management_result
+      changed_when: >-
+        'Plugin configuration unchanged' not in
+        management_result.stdout
+
+    - name: Get current cluster status
+      ansible.builtin.command:
+        argv:
+          - rabbitmqctl
+          - cluster_status
+          - --formatter
+          - json
+      register: cluster_status
+      changed_when: false
+
+    - name: Parse cluster status
+      ansible.builtin.set_fact:
+        cluster_info: "{{ cluster_status.stdout | from_json }}"
+
+    - name: Join secondary nodes to cluster
+      when:
+        - inventory_hostname != rabbitmq_primary
+        - >-
+          ('rabbit@' ~ rabbitmq_primary)
+          not in cluster_info.disk_nodes
+      block:
+        - name: Check whether node has existing queues
+          ansible.builtin.command:
+            argv:
+              - rabbitmqctl
+              - list_queues
+              - name
+              - --formatter
+              - json
+          register: existing_queues
+          changed_when: false
+
+        - name: Prevent resetting node with queues
+          ansible.builtin.assert:
+            that:
+              - (existing_queues.stdout | from_json | length) == 0
+            fail_msg: >-
+              Node contains queues. Refusing to reset it automatically.
+
+        - name: Stop RabbitMQ application
+          ansible.builtin.command:
+            argv:
+              - rabbitmqctl
+              - stop_app
+
+        - name: Reset standalone node
+          ansible.builtin.command:
+            argv:
+              - rabbitmqctl
+              - reset
+
+        - name: Join primary cluster
+          ansible.builtin.command:
+            argv:
+              - rabbitmqctl
+              - join_cluster
+              - "rabbit@{{ rabbitmq_primary }}"
+
+        - name: Start RabbitMQ application
+          ansible.builtin.command:
+            argv:
+              - rabbitmqctl
+              - start_app
+
+      rescue:
+        - name: Attempt to restart RabbitMQ application
+          ansible.builtin.command:
+            argv:
+              - rabbitmqctl
+              - start_app
+          failed_when: false
+
+        - name: Report cluster join failure
+          ansible.builtin.fail:
+            msg: "Failed to join {{ inventory_hostname }} to cluster."
+
+
+- name: Configure policies and verify cluster
+  hosts: rabbitmq_nodes[0]
+  become: true
+  gather_facts: false
+
+  vars:
+    rabbitmq_policy_name: "ha-all"
+    rabbitmq_policy_pattern: ".*"
+    rabbitmq_policy_definition:
+      delivery-limit: 20
+
+  tasks:
+    - name: Read existing policies
+      ansible.builtin.command:
+        argv:
+          - rabbitmqctl
+          - list_policies
+          - --formatter
+          - json
+      register: policies_result
+      changed_when: false
+
+    - name: Find existing ha-all policy
+      ansible.builtin.set_fact:
+        existing_policy: >-
+          {{
+            (
+              policies_result.stdout | from_json
+              | selectattr('name', 'equalto', rabbitmq_policy_name)
+              | list
+              | first
+            ) | default({})
+          }}
+
+    - name: Configure ha-all policy
+      ansible.builtin.command:
+        argv:
+          - rabbitmqctl
+          - set_policy
+          - --apply-to
+          - quorum_queues
+          - "{{ rabbitmq_policy_name }}"
+          - "{{ rabbitmq_policy_pattern }}"
+          - "{{ rabbitmq_policy_definition | to_json }}"
+      when: >-
+        existing_policy.get('pattern') != rabbitmq_policy_pattern
+        or existing_policy.get('apply_to') != 'quorum_queues'
+        or existing_policy.get('definition') != rabbitmq_policy_definition
+
+    - name: Get final cluster status
+      ansible.builtin.command:
+        argv:
+          - rabbitmqctl
+          - cluster_status
+          - --formatter
+          - json
+      register: final_status
+      changed_when: false
+
+    - name: Parse final cluster status
+      ansible.builtin.set_fact:
+        final_cluster: "{{ final_status.stdout | from_json }}"
+
+    - name: Verify all cluster nodes are running
+      ansible.builtin.assert:
+        that:
+          - >-
+            (groups['rabbitmq_nodes']
+            | map('regex_replace', '^', 'rabbit@')
+            | difference(final_cluster.running_nodes)
+            | length) == 0
+        fail_msg: "Some RabbitMQ nodes are not running."
+        success_msg: "All RabbitMQ cluster nodes are running."
+
+    - name: Display cluster nodes
+      ansible.builtin.debug:
+        var: final_cluster.running_nodes
+
+    - name: Display cluster status
+      ansible.builtin.debug:
+        var: final_cluster
