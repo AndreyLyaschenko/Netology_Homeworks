@@ -1,0 +1,3 @@
+Listing policies for vhost "/" ...
+vhost	name	pattern	apply-to	definition	priority
+/	ha-all	^hello-ha$	quorum_queues	{"delivery-limit":20}	0

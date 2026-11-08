@@ -1,0 +1,58 @@
+services:
+  rabbitmq1:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq1
+    container_name: hw-rabbitmq1
+    environment:
+      RABBITMQ_DEFAULT_USER: netology
+      RABBITMQ_DEFAULT_PASS: netology123
+      RABBITMQ_ERLANG_COOKIE: netology-rabbitmq-cluster
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "0.0.0.0:15672:15672"
+    volumes:
+      - rabbitmq1_data:/var/lib/rabbitmq
+    restart: unless-stopped
+  rabbitmq2:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq2
+    container_name: hw-rabbitmq2
+    environment:
+      RABBITMQ_DEFAULT_USER: netology
+      RABBITMQ_DEFAULT_PASS: netology123
+      RABBITMQ_ERLANG_COOKIE: netology-rabbitmq-cluster
+    ports:
+      - "127.0.0.1:15673:15672"
+    volumes:
+      - rabbitmq2_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  rabbitmq3:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq3
+    container_name: hw-rabbitmq3
+    environment:
+      RABBITMQ_DEFAULT_USER: netology
+      RABBITMQ_DEFAULT_PASS: netology123
+      RABBITMQ_ERLANG_COOKIE: netology-rabbitmq-cluster
+    ports:
+      - "127.0.0.1:15674:15672"
+    volumes:
+      - rabbitmq3_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  python:
+    build:
+      context: ./python
+    working_dir: /app
+    volumes:
+      - ./python:/app
+    environment:
+      RABBITMQ_HOST: rabbitmq1
+    command: sleep infinity
+    depends_on:
+      - rabbitmq1
+volumes:
+  rabbitmq1_data:
+  rabbitmq2_data:
+  rabbitmq3_data:

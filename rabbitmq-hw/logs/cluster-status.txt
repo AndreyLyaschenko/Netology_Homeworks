@@ -1,0 +1,92 @@
+Cluster status of node rabbit@rabbitmq1 ...
+Basics
+
+Cluster name: rabbit@rabbitmq1
+Total CPU cores available cluster-wide: 12
+
+Cluster Tags
+
+(none)
+
+Disk Nodes
+
+rabbit@rabbitmq1
+rabbit@rabbitmq2
+rabbit@rabbitmq3
+
+Running Nodes
+
+rabbit@rabbitmq1
+rabbit@rabbitmq2
+rabbit@rabbitmq3
+
+Versions
+
+rabbit@rabbitmq1: RabbitMQ 4.1.8 on Erlang 27.3.4.19
+rabbit@rabbitmq2: RabbitMQ 4.1.8 on Erlang 27.3.4.19
+rabbit@rabbitmq3: RabbitMQ 4.1.8 on Erlang 27.3.4.19
+
+CPU Cores
+
+Node: rabbit@rabbitmq1, available CPU cores: 4
+Node: rabbit@rabbitmq2, available CPU cores: 4
+Node: rabbit@rabbitmq3, available CPU cores: 4
+
+Maintenance status
+
+Node: rabbit@rabbitmq1, status: not under maintenance
+Node: rabbit@rabbitmq2, status: not under maintenance
+Node: rabbit@rabbitmq3, status: not under maintenance
+
+Alarms
+
+(none)
+
+Network Partitions
+
+(none)
+
+Listeners
+
+Node: rabbit@rabbitmq1, interface: [::], port: 15672, protocol: http, purpose: HTTP API
+Node: rabbit@rabbitmq1, interface: [::], port: 15692, protocol: http/prometheus, purpose: Prometheus exporter API over HTTP
+Node: rabbit@rabbitmq1, interface: [::], port: 25672, protocol: clustering, purpose: inter-node and CLI tool communication
+Node: rabbit@rabbitmq1, interface: [::], port: 5672, protocol: amqp, purpose: AMQP 0-9-1 and AMQP 1.0
+Node: rabbit@rabbitmq2, interface: [::], port: 15672, protocol: http, purpose: HTTP API
+Node: rabbit@rabbitmq2, interface: [::], port: 15692, protocol: http/prometheus, purpose: Prometheus exporter API over HTTP
+Node: rabbit@rabbitmq2, interface: [::], port: 25672, protocol: clustering, purpose: inter-node and CLI tool communication
+Node: rabbit@rabbitmq2, interface: [::], port: 5672, protocol: amqp, purpose: AMQP 0-9-1 and AMQP 1.0
+Node: rabbit@rabbitmq3, interface: [::], port: 15672, protocol: http, purpose: HTTP API
+Node: rabbit@rabbitmq3, interface: [::], port: 15692, protocol: http/prometheus, purpose: Prometheus exporter API over HTTP
+Node: rabbit@rabbitmq3, interface: [::], port: 25672, protocol: clustering, purpose: inter-node and CLI tool communication
+Node: rabbit@rabbitmq3, interface: [::], port: 5672, protocol: amqp, purpose: AMQP 0-9-1 and AMQP 1.0
+
+Feature flags
+
+Flag: classic_mirrored_queue_version, state: enabled
+Flag: classic_queue_type_delivery_support, state: enabled
+Flag: detailed_queues_endpoint, state: enabled
+Flag: direct_exchange_routing_v2, state: enabled
+Flag: drop_unroutable_metric, state: enabled
+Flag: empty_basic_get_metric, state: enabled
+Flag: feature_flags_v2, state: enabled
+Flag: implicit_default_bindings, state: enabled
+Flag: khepri_db, state: disabled
+Flag: listener_records_in_ets, state: enabled
+Flag: maintenance_mode_status, state: enabled
+Flag: message_containers, state: enabled
+Flag: message_containers_deaths_v2, state: enabled
+Flag: quorum_queue, state: enabled
+Flag: quorum_queue_non_voters, state: enabled
+Flag: rabbit_exchange_type_local_random, state: enabled
+Flag: rabbitmq_4.0.0, state: enabled
+Flag: rabbitmq_4.1.0, state: enabled
+Flag: restart_streams, state: enabled
+Flag: stream_filtering, state: enabled
+Flag: stream_queue, state: enabled
+Flag: stream_sac_coordinator_unblock_group, state: enabled
+Flag: stream_single_active_consumer, state: enabled
+Flag: stream_update_config_command, state: enabled
+Flag: tracking_records_in_ets, state: enabled
+Flag: user_limits, state: enabled
+Flag: virtual_host_metadata, state: enabled
